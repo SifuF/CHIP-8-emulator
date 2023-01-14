@@ -1,8 +1,8 @@
 // CHIP-8 emulator by SifuF
 
-#include "CPU.hpp"
+#include "CHIP8.hpp"
 
 int main(int argc, char** argv) {
-	CPU cpu("roms/ibm.ch8");
-	return cpu.run();
+	CHIP8 chip8("roms/Breakout (Brix hack) [David Winter, 1997].ch8");
+	return chip8.run();
 }
