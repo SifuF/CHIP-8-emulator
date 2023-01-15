@@ -1,9 +1,10 @@
 #include "CHIP8.hpp"
-#include <iostream>
+
+#include <chrono>
 #include <cstring>
 #include <cstdlib>
 #include <fstream>
-#include <chrono>
+#include <iostream>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -47,6 +48,9 @@ CHIP8::CHIP8(const char * romFile) : PC(0x200), I(0x50), instruction(0), delayTi
 	displayFill();
 	loadROM(Data::font, 0x0050);
 	loadROM(buffer, 0x200);
+#ifdef _WIN32
+	system("Color 0A");
+#endif
 #ifndef NDEBUG
 	memDump(0x040, 0x0B0);
 	std::cout << std::endl;
@@ -79,8 +83,26 @@ void CHIP8::decrementTimers() {
 }
 
 bool CHIP8::getKey(uint8 key) {
-	//get keys
-	return false;
+	bool any = false;
+#ifdef _WIN32
+	if (GetKeyState('1') & 0x8000) { if (key == 0x1) { any = true; return true; } }
+	else if (GetKeyState('2') & 0x8000) { if (key == 0x2) { any = true; return true; } }
+	else if (GetKeyState('3') & 0x8000) { if (key == 0x3) { any = true; return true; } }
+	else if (GetKeyState('4') & 0x8000) { if (key == 0xc) { any = true; return true; } }
+	else if (GetKeyState('Q') & 0x8000) { if (key == 0x4) { any = true; return true; } }
+	else if (GetKeyState('W') & 0x8000) { if (key == 0x5) { any = true; return true; } }
+	else if (GetKeyState('E') & 0x8000) { if (key == 0x6) { any = true; return true; } }
+	else if (GetKeyState('R') & 0x8000) { if (key == 0xd) { any = true; return true; } }
+	else if (GetKeyState('A') & 0x8000) { if (key == 0x7) { any = true; return true; } }
+	else if (GetKeyState('S') & 0x8000) { if (key == 0x8) { any = true; return true; } }
+	else if (GetKeyState('D') & 0x8000) { if (key == 0x9) { any = true; return true; } }
+	else if (GetKeyState('F') & 0x8000) { if (key == 0xe) { any = true; return true; } }
+	else if (GetKeyState('Z') & 0x8000) { if (key == 0xa) { any = true; return true; } }
+	else if (GetKeyState('X') & 0x8000) { if (key == 0x0) { any = true; return true; } }
+	else if (GetKeyState('C') & 0x8000) { if (key == 0xb) { any = true; return true; } }
+	else if (GetKeyState('V') & 0x8000) { if (key == 0xf) { any = true; return true; } }
+#endif
+	return any;
 }
 
 void CHIP8::jump(uint16 NNN) {
@@ -274,10 +296,14 @@ void CHIP8::draw(uint8 X, uint8 Y, uint8 N) {
 			uint8 mask = 1 << (7-j);
 			uint8 bit = sprite & mask;
 			if (bit) {
-				if (display.at(x + j + (i + y) * 64)) {
+				unsigned index = x + j + (i + y) * 64;
+				if(index >= display.size())
+					break;
+
+				if (display.at(index)) {
 					V.at(15) = 1;
 				}
-				display.at(x + j + (i + y) * 64) = !display.at(x + j + (i + y) * 64);
+				display.at(index) = !display.at(index);
 			}
 	    }
 	}
@@ -495,14 +521,14 @@ void CHIP8::step() {
 
 int CHIP8::run() {
 	auto timePrev = std::chrono::steady_clock::now();
-	double frameTime = 1/60.0;
+	double frameTime = 1/120.0;
 	while (running) {
 		auto timeNow = std::chrono::steady_clock::now();
 		std::chrono::duration<double> elapsed_seconds = timeNow - timePrev;
-		if (elapsed_seconds.count() > frameTime) {
+		//if (elapsed_seconds.count() > frameTime) {
 			step();
 			timePrev = timeNow;
-		}
+		//}
 	}
 	return 0;
 }

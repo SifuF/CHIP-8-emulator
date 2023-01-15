@@ -2,6 +2,7 @@
 
 #include "defs.hpp"
 #include "font.hpp"
+
 #include <stack>
 #include <vector>
 
@@ -32,7 +33,7 @@ public:
 	void callSubroutine(uint16 NNN);                  //2NNN
 	void returnFromSubroutine();                      //00EE
 	void skipIfVxEqualNn(uint8 X, uint8 NN);          //3XNN
-	void skipIfVxNotEqualNn(uint8 X, uint8 NN);	      //4XNN
+	void skipIfVxNotEqualNn(uint8 X, uint8 NN);       //4XNN
 	void skipIfVxEqualVy(uint8 X, uint8 Y);           //5XY0
 	void skipIfVxNotEqualVy(uint8 X, uint8 Y);        //9XY0
 	void jumpOffset(uint16 NNN);                      //BNNN
