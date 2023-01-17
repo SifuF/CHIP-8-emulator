@@ -49,12 +49,12 @@ CHIP8::CHIP8(const char * romFile) : PC(0x200), I(0x50), instruction(0), delayTi
 	loadROM(Data::font, 0x0050);
 	loadROM(buffer, 0x200);
 #ifdef _WIN32
-	system("Color 0A");
+	system("Color CE");
 #endif
 #ifndef NDEBUG
 	memDump(0x040, 0x0B0);
 	std::cout << std::endl;
-	memDump(0x1F0, 0x2A0);
+	memDump(0x1f0, 0x2a0);
 	screenUpdate();
 #endif
 }
@@ -85,24 +85,27 @@ void CHIP8::decrementTimers() {
 bool CHIP8::getKey(uint8 key) {
 	bool any = false;
 #ifdef _WIN32
-	if (GetKeyState('1') & 0x8000) { if (key == 0x1) { any = true; return true; } }
-	else if (GetKeyState('2') & 0x8000) { if (key == 0x2) { any = true; return true; } }
-	else if (GetKeyState('3') & 0x8000) { if (key == 0x3) { any = true; return true; } }
-	else if (GetKeyState('4') & 0x8000) { if (key == 0xc) { any = true; return true; } }
-	else if (GetKeyState('Q') & 0x8000) { if (key == 0x4) { any = true; return true; } }
-	else if (GetKeyState('W') & 0x8000) { if (key == 0x5) { any = true; return true; } }
-	else if (GetKeyState('E') & 0x8000) { if (key == 0x6) { any = true; return true; } }
-	else if (GetKeyState('R') & 0x8000) { if (key == 0xd) { any = true; return true; } }
-	else if (GetKeyState('A') & 0x8000) { if (key == 0x7) { any = true; return true; } }
-	else if (GetKeyState('S') & 0x8000) { if (key == 0x8) { any = true; return true; } }
-	else if (GetKeyState('D') & 0x8000) { if (key == 0x9) { any = true; return true; } }
-	else if (GetKeyState('F') & 0x8000) { if (key == 0xe) { any = true; return true; } }
-	else if (GetKeyState('Z') & 0x8000) { if (key == 0xa) { any = true; return true; } }
-	else if (GetKeyState('X') & 0x8000) { if (key == 0x0) { any = true; return true; } }
-	else if (GetKeyState('C') & 0x8000) { if (key == 0xb) { any = true; return true; } }
-	else if (GetKeyState('V') & 0x8000) { if (key == 0xf) { any = true; return true; } }
+	if (GetKeyState('1') & 0x8000) { any = true; if (key == 0x1) return true; }
+	else if (GetKeyState('2') & 0x8000) { any = true; if (key == 0x2) return true; }
+	else if (GetKeyState('3') & 0x8000) { any = true; if (key == 0x3) return true; }
+	else if (GetKeyState('4') & 0x8000) { any = true; if (key == 0xc) return true; }
+	else if (GetKeyState('Q') & 0x8000) { any = true; if (key == 0x4) return true; }
+	else if (GetKeyState('W') & 0x8000) { any = true; if (key == 0x5) return true; }
+	else if (GetKeyState('E') & 0x8000) { any = true; if (key == 0x6) return true; }
+	else if (GetKeyState('R') & 0x8000) { any = true; if (key == 0xd) return true; }
+	else if (GetKeyState('A') & 0x8000) { any = true; if (key == 0x7) return true; }
+	else if (GetKeyState('S') & 0x8000) { any = true; if (key == 0x8) return true; }
+	else if (GetKeyState('D') & 0x8000) { any = true; if (key == 0x9) return true; }
+	else if (GetKeyState('F') & 0x8000) { any = true; if (key == 0xe) return true; }
+	else if (GetKeyState('Z') & 0x8000) { any = true; if (key == 0xa) return true; }
+	else if (GetKeyState('X') & 0x8000) { any = true; if (key == 0x0) return true; }
+	else if (GetKeyState('C') & 0x8000) { any = true; if (key == 0xb) return true; }
+	else if (GetKeyState('V') & 0x8000) { any = true; if (key == 0xf) return true; }
 #endif
-	return any;
+	if(key == 16)
+		return any;
+
+	return false;
 }
 
 void CHIP8::jump(uint16 NNN) {
@@ -149,7 +152,7 @@ void CHIP8::skipIfVxNotEqualVy(uint8 X, uint8 Y) {
 
 void CHIP8::jumpOffset(uint16 NNN) {
 #ifdef OP_BXNN
-	uint8 X = (NNN & 0x0F00) >> 8;
+	uint8 X = (NNN & 0x0f00) >> 8;
 	jump(NNN + V.at(X));
 #else
 	jump(NNN + V.at(0));
@@ -186,14 +189,14 @@ void CHIP8::xorV(uint8 X, uint8 Y) {
 }
 
 void CHIP8::addV(uint8 X, uint8 Y) {
-	uint16 z = static_cast<uint16>(V.at(X)) + static_cast<uint16>(V.at(Y));
-	if (z > 0xFF) {
+	uint16 z = static_cast<unsigned>(V.at(X)) + static_cast<unsigned>(V.at(Y));
+	if (z > 0xff) {
 		V.at(0xf) = 1;
 	}
 	else {
 		V.at(0xf) = 0;
 	}
-	V.at(X) = static_cast<uint8>(z);
+	V.at(X) += V.at(Y);
 }
 
 void CHIP8::subV(uint8 X, uint8 Y, bool swap) {
@@ -247,19 +250,20 @@ void CHIP8::setSoundFromVx(uint8 X) {
 }
 
 void CHIP8::addIndexRegister(uint8 X) {
-	if ((static_cast<unsigned>(I) + static_cast<unsigned>(V.at(X))) > 0xFFF) {
+	if ((static_cast<unsigned>(I) + static_cast<unsigned>(V.at(X))) > 0xfff) {
 		V.at(0xf) = 1;
 	}
 	I += V.at(X);
 }
 
 void CHIP8::getKeyBlocking(uint8 key) {
-	if (getKey()) return;
-	else PC -= 2;
+	if (getKey(16)) return;
+
+	PC -= 2;
 }
 
 void CHIP8::fontCharacter(uint8 X) {
-	I = 0x50 + 5 * (V.at(X) & 0x0F);
+	I = 0x50 + 5 * (V.at(X) & 0x0f);
 }
 
 void CHIP8::bcdConversion(uint8 X) {
@@ -291,21 +295,22 @@ void CHIP8::draw(uint8 X, uint8 Y, uint8 N) {
 	uint8 y = V.at(Y) % 32;
 	V.at(0xf) = 0;
 	for (unsigned i = 0; i < N; i++) {
+		if (y + i >= 32) break;
+
 		uint8 sprite = memory.at(I + i);
 		for (unsigned j = 0; j < 8; j++) {
-			uint8 mask = 1 << (7-j);
+			uint8 mask = 1 << (7 - j);
 			uint8 bit = sprite & mask;
 			if (bit) {
-				unsigned index = x + j + (i + y) * 64;
-				if(index >= display.size())
-					break;
+				if (x + j >= 64) break;
 
+				unsigned index = x + j + (i + y) * 64;
 				if (display.at(index)) {
-					V.at(15) = 1;
+					V.at(0xf) = 1;
 				}
 				display.at(index) = !display.at(index);
 			}
-	    }
+		}
 	}
 }
 
@@ -336,19 +341,19 @@ void CHIP8::fetchDecodeExecute() {
 	uint8 lsb = memory.at(PC++);
 	instruction = msb | lsb;
 
-	uint8 F = (instruction & 0xF000) >> 12;  // FXYN - 4 bits each
-	uint8 X = (instruction & 0x0F00) >> 8;
-	uint8 Y = (instruction & 0x00F0) >> 4;
-	uint8 N = (instruction & 0x000F);
-	uint8 NN = (instruction & 0x00FF);       // FXNN - 8 bits
-	uint16 NNN = (instruction & 0x0FFF);     // FNNN - 12 bits
+	uint8 F = (instruction & 0xf000) >> 12;  // FXYN - 4 bits each
+	uint8 X = (instruction & 0x0f00) >> 8;
+	uint8 Y = (instruction & 0x00f0) >> 4;
+	uint8 N = (instruction & 0x000f);
+	uint8 NN = (instruction & 0x00ff);       // FXNN - 8 bits
+	uint16 NNN = (instruction & 0x0fff);     // FNNN - 12 bits
 
 	switch (F) {
 		case 0x0: {
-			if (NNN == 0x0E0) {
+			if (NNN == 0x0e0) {
 				displayFill();
 			}
-			else if (NNN == 0x0EE) {
+			else if (NNN == 0x0ee) {
 				returnFromSubroutine();
 			}
 			else {
@@ -389,7 +394,7 @@ void CHIP8::fetchDecodeExecute() {
 		case 0x8: {
 			switch (N) {
 			    case 0x0: {
-					setV(X, Y);
+     				setV(X, Y);
 				    break;
 			    }
 				case 0x1: {
@@ -478,10 +483,10 @@ void CHIP8::fetchDecodeExecute() {
 			else if (NN == 0x18) {
 				setSoundFromVx(X);
 			}
-			else if (NN == 0x1E) {
+			else if (NN == 0x1e) {
 				addIndexRegister(X);
 			}
-			else if (NN == 0x0A) {
+			else if (NN == 0x0a) {
 				getKeyBlocking(X);
 			}
 			else if (NN == 0x29) {
@@ -521,7 +526,7 @@ void CHIP8::step() {
 
 int CHIP8::run() {
 	auto timePrev = std::chrono::steady_clock::now();
-	double frameTime = 1/120.0;
+	double frameTime = 1/60.0;
 	while (running) {
 		auto timeNow = std::chrono::steady_clock::now();
 		std::chrono::duration<double> elapsed_seconds = timeNow - timePrev;
