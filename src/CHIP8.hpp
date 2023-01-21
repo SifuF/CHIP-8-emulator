@@ -24,6 +24,7 @@ public:
 	void screenClear() const;
 	void screenUpdate() const;
 	void playSound() const;
+	void setColour() const;
 
 	void draw(uint8 X, uint8 Y, uint8 N);             //DXYN
 	void jump(uint16 NNN);                            //1NNN
@@ -56,7 +57,6 @@ public:
 	void bcdConversion(uint8 X);                      //FX33
 	void storeMem(uint8 X);                           //FX55
 	void loadMem(uint8 X);                            //FX65
-
 #ifndef NDEBUG
 	void memDump(unsigned begin, unsigned end) const;
 	void printRegisters() const;
@@ -71,5 +71,7 @@ private:
 	std::array<uint8, 16> V;
 	uint8 delayTimer;
 	uint8 soundTimer;
+
 	bool running = true;
+	static constexpr uint16 fontAddr = 0x50;
 };

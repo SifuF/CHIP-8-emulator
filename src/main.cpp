@@ -1,9 +1,11 @@
 // CHIP-8 emulator by SifuF
 
-#include "CHIP8.hpp"
+#include"CHIP8.hpp"
+
+#include<memory>
 
 int main(int argc, char** argv) {
-	CHIP8 chip8("roms/Breakout (Brix hack) [David Winter, 1997].ch8");
-	//CHIP8 chip8("roms/INVADERS");
-	return chip8.run();
+	const auto * filename = "roms/sifuf.ch8";
+	auto chip8 = std::make_unique<CHIP8>(filename);
+	return chip8->run();
 }

@@ -35,22 +35,23 @@ void CHIP8::printRegisters() const {
 		std::cout << "V" << i << "=" << static_cast<int>(V.at(i)) << " ";
 	}
 	std::cout << std::endl;
+	if(!stack.empty())
+		std::cout << "stack=" << static_cast<int>(stack.top()) << std::endl;
+	else
+		std::cout << "stack=empty" << std::endl;
 	std::cout << "delay=" << static_cast<int>(delayTimer) << std::endl;
 	std::cout << "sound=" << static_cast<int>(soundTimer) << std::endl;
 }
 #endif
 
-CHIP8::CHIP8(const char * romFile) : PC(0x200), I(0x50), instruction(0), delayTimer(0), soundTimer(0) {
+CHIP8::CHIP8(const char * romFile) : PC(0x200), I(fontAddr), instruction(0), delayTimer(0), soundTimer(0) {
 	std::ifstream input(romFile, std::ios::binary);
 	std::vector<uint8> buffer(std::istreambuf_iterator<char>(input), {});
-	srand(time(NULL));
+	srand(static_cast<unsigned>(time(0)));
 	memFill();
 	displayFill();
 	loadROM(Data::font, 0x0050);
 	loadROM(buffer, 0x200);
-#ifdef _WIN32
-	system("Color CE");
-#endif
 #ifndef NDEBUG
 	memDump(0x040, 0x0B0);
 	std::cout << std::endl;
@@ -108,6 +109,38 @@ bool CHIP8::getKey(uint8 key) {
 	return false;
 }
 
+void CHIP8::setColour() const {
+#ifdef _WIN32
+	static char background = '0';
+	static char pixel = '0';
+	static bool deBounceBackground = false;
+	static bool deBouncePixel = false;
+
+	auto change = [](char key, char & val, bool & canPress) {
+		if ((GetKeyState(key) & 0x8000)) {
+			if (canPress) {
+				if (val < '9' || val >= 'A') val++;
+				else val = 'A';
+
+				if (val > 'F') val = '0';
+
+				std::string str = "Color ";
+				str.push_back(background);
+				str.push_back(pixel);
+				system(str.c_str());
+				canPress = false;
+			}
+		}
+		else {
+			canPress = true;
+		}
+	};
+
+	change('M', background, deBounceBackground);
+	change('N', pixel, deBouncePixel);
+#endif
+}
+
 void CHIP8::jump(uint16 NNN) {
 	PC = NNN;
 }
@@ -160,7 +193,7 @@ void CHIP8::jumpOffset(uint16 NNN) {
 }
 
 void CHIP8::random(uint8 X, uint8 NN) {
-	uint8 r = static_cast<uint8>(std::rand());
+	const uint8 r = static_cast<uint8>(std::rand());
 	V.at(X) = r & NN;
 }
 
@@ -189,7 +222,7 @@ void CHIP8::xorV(uint8 X, uint8 Y) {
 }
 
 void CHIP8::addV(uint8 X, uint8 Y) {
-	uint16 z = static_cast<unsigned>(V.at(X)) + static_cast<unsigned>(V.at(Y));
+	const uint16 z = static_cast<unsigned>(V.at(X)) + static_cast<unsigned>(V.at(Y));
 	if (z > 0xff) {
 		V.at(0xf) = 1;
 	}
@@ -200,31 +233,30 @@ void CHIP8::addV(uint8 X, uint8 Y) {
 }
 
 void CHIP8::subV(uint8 X, uint8 Y, bool swap) {
+	uint8 A, B;
 	if (swap) {
-		if (V.at(Y) >= V.at(X)) {
-			V.at(0xf) = 1;
-		}
-		else {
-			V.at(0xf) = 0;
-		}
-		V.at(X) = V.at(Y) - V.at(X);
+		A = Y;
+		B = X;
 	}
 	else {
-		if (V.at(X) >= V.at(Y)) {
-			V.at(0xf) = 1;
-		}
-		else {
-			V.at(0xf) = 0;
-		}
-		V.at(X) = V.at(X) - V.at(Y);
+		A = X;
+		B = Y;
 	}
+
+	if (V.at(A) >= V.at(B)) {
+		V.at(0xf) = 1;
+	}
+	else {
+		V.at(0xf) = 0;
+	}
+	V.at(X) = V.at(A) - V.at(B);
 }
 
 void CHIP8::shiftV(uint8 X, uint8 Y, bool left) {
 #ifndef CHIP48
 	V.at(X) = V.at(Y);
 #endif
-	uint8 x_tmp = V.at(X);
+	const uint8 vx = V.at(X);
 	uint8 mask;
 	if (left) {
 		mask = 0b10000000;
@@ -234,7 +266,7 @@ void CHIP8::shiftV(uint8 X, uint8 Y, bool left) {
 		mask = 0b00000001;
 		V.at(X) = V.at(X) >> 1;
 	}
-	V.at(0xF) = (mask & x_tmp) ? 1 : 0;
+	V.at(0xF) = (mask & vx) ? 1 : 0;
 }
 
 void CHIP8::setVxFromTimer(uint8 X) {
@@ -263,7 +295,7 @@ void CHIP8::getKeyBlocking(uint8 key) {
 }
 
 void CHIP8::fontCharacter(uint8 X) {
-	I = 0x50 + 5 * (V.at(X) & 0x0f);
+	I = fontAddr + 5 * (V.at(X) & 0x0f);
 }
 
 void CHIP8::bcdConversion(uint8 X) {
@@ -273,14 +305,14 @@ void CHIP8::bcdConversion(uint8 X) {
 }
 
 void CHIP8::storeMem(uint8 X) {
-	memcpy(memory.data() + I, V.data(), X + 1);
+	std::memcpy(memory.data() + I, V.data(), X + 1);
 #ifdef OLDMEM
 	I += X + 1;
 #endif
 }
 
 void CHIP8::loadMem(uint8 X) {
-	memcpy(V.data(), memory.data() + I, X + 1);
+	std::memcpy(V.data(), memory.data() + I, X + 1);
 #ifdef OLDMEM
 	I += X + 1;
 #endif
@@ -291,20 +323,20 @@ void CHIP8::playSound() const {
 }
 
 void CHIP8::draw(uint8 X, uint8 Y, uint8 N) {
-	uint8 x = V.at(X) % 64;
-	uint8 y = V.at(Y) % 32;
+	const uint8 x = V.at(X) % 64;
+	const uint8 y = V.at(Y) % 32;
 	V.at(0xf) = 0;
 	for (unsigned i = 0; i < N; i++) {
 		if (y + i >= 32) break;
 
-		uint8 sprite = memory.at(I + i);
+		const uint8 sprite = memory.at(I + i);
 		for (unsigned j = 0; j < 8; j++) {
-			uint8 mask = 1 << (7 - j);
-			uint8 bit = sprite & mask;
+			const uint8 mask = 1 << (7 - j);
+			const uint8 bit = sprite & mask;
 			if (bit) {
 				if (x + j >= 64) break;
 
-				unsigned index = x + j + (i + y) * 64;
+				const unsigned index = x + j + (i + y) * 64;
 				if (display.at(index)) {
 					V.at(0xf) = 1;
 				}
@@ -337,16 +369,16 @@ void CHIP8::screenClear() const {
 }
 
 void CHIP8::fetchDecodeExecute() {
-	uint16 msb = memory.at(PC++) << 8;
-	uint8 lsb = memory.at(PC++);
+	const uint16 msb = memory.at(PC++) << 8;
+	const uint8 lsb = memory.at(PC++);
 	instruction = msb | lsb;
 
-	uint8 F = (instruction & 0xf000) >> 12;  // FXYN - 4 bits each
-	uint8 X = (instruction & 0x0f00) >> 8;
-	uint8 Y = (instruction & 0x00f0) >> 4;
-	uint8 N = (instruction & 0x000f);
-	uint8 NN = (instruction & 0x00ff);       // FXNN - 8 bits
-	uint16 NNN = (instruction & 0x0fff);     // FNNN - 12 bits
+	const uint8 F = (instruction & 0xf000) >> 12;  // FXYN - 4 bits each
+	const uint8 X = (instruction & 0x0f00) >> 8;
+	const uint8 Y = (instruction & 0x00f0) >> 4;
+	const uint8 N = (instruction & 0x000f);
+	const uint8 NN = (instruction & 0x00ff);       // FXNN - 8 bits
+	const uint16 NNN = (instruction & 0x0fff);     // FNNN - 12 bits
 
 	switch (F) {
 		case 0x0: {
@@ -511,6 +543,7 @@ void CHIP8::fetchDecodeExecute() {
 }
 
 void CHIP8::step() {
+	setColour();
 #ifndef NDEBUG
 	screenClear();
 #endif
@@ -526,14 +559,14 @@ void CHIP8::step() {
 
 int CHIP8::run() {
 	auto timePrev = std::chrono::steady_clock::now();
-	double frameTime = 1/60.0;
+	const double frameTime = 1/60.0;
 	while (running) {
-		auto timeNow = std::chrono::steady_clock::now();
-		std::chrono::duration<double> elapsed_seconds = timeNow - timePrev;
-		//if (elapsed_seconds.count() > frameTime) {
+		const auto timeNow = std::chrono::steady_clock::now();
+		const std::chrono::duration<double> elapsed_seconds = timeNow - timePrev;
+		if (elapsed_seconds.count() > frameTime) {
 			step();
 			timePrev = timeNow;
-		//}
+		}
 	}
 	return 0;
 }
